@@ -30,12 +30,16 @@ async function run() {
   try {
     await client.connect();
 
-    const db = client.db('Artora_db');
-    const productsCollection = db.collection('products')
+    const db = client.db('Artora-db');
+    const ArtProductsCollection = db.collection('artora')
 
 
 
-    app.get('/')
+    app.get('/explore-artworks', async (req, res) => {
+        const result = await ArtProductsCollection.find().toArray()
+        res.send(result)
+
+    })
 
     await client.db("admin").command({ ping: 1 });
     console.log(
