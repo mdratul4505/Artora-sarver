@@ -43,7 +43,6 @@ async function run() {
 
     app.get('/explore-artworks/:id', async (req , res) =>{
         const {id} = req.params
-        console.log(id)
         const result = await ArtProductsCollection.findOne({_id : new ObjectId(id)})
         res.send(result)
     })
@@ -56,6 +55,24 @@ async function run() {
         const result = await ArtProductsCollection.insertOne(data)
         res.send(result)
     })
+
+    app.put('/explore-artworks/:id', async (req , res) =>{
+        const {id} = req.params
+        const objectId = new ObjectId(id)
+        const data  = req.body
+        const filter = {_id : objectId}
+        
+        const updateData = {
+            $set: data
+        }
+
+        const result = await ArtProductsCollection.updateOne(filter , updateData)
+        res.send(result)
+
+    })
+
+
+
 
     await client.db("admin").command({ ping: 1 });
     console.log(
