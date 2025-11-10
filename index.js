@@ -90,6 +90,31 @@ async function run() {
 
 
 
+    const FavoritesCollection = db.collection('favorites');
+
+app.post('/favorites', async (req, res) => {
+  const favoriteData = req.body; 
+  const result = await FavoritesCollection.insertOne(favoriteData);
+  res.send(result);
+});
+
+
+app.get('/favorites', async (req, res) => {
+  const email = req.query.email;
+  const result = await FavoritesCollection.find({ userEmail: email }).toArray();
+  res.send(result);
+});
+
+
+app.delete('/favorites/:id', async (req, res) => {
+  const { id } = req.params;
+  const result = await FavoritesCollection.deleteOne({ _id: new ObjectId(id) });
+  res.send(result);
+});
+
+
+
+
     await client.db("admin").command({ ping: 1 });
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
