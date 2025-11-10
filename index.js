@@ -1,5 +1,5 @@
 const express = require("express");
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const cors = require("cors");
 const app = express();
 
@@ -41,12 +41,11 @@ async function run() {
 
     })
 
-    app.get('/explore-artworks:id', async (req , res) =>{
+    app.get('/explore-artworks/:id', async (req , res) =>{
         const {id} = req.params
         console.log(id)
-        res.send(
-            {success : true}
-        )
+        const result = await ArtProductsCollection.findOne({_id : new ObjectId(id)})
+        res.send(result)
     })
 
 
