@@ -41,6 +41,23 @@ async function run() {
 
     })
 
+    app.get('/explore-artworks:id', async (req , res) =>{
+        const {id} = req.params
+        console.log(id)
+        res.send(
+            {success : true}
+        )
+    })
+
+
+
+    app.post('/explore-artworks',async (req , res) =>{
+        const data = req.body
+        
+        const result = await ArtProductsCollection.insertOne(data)
+        res.send(result)
+    })
+
     await client.db("admin").command({ ping: 1 });
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
