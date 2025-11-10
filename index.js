@@ -88,6 +88,20 @@ async function run() {
         res.send(result)
     })
 
+    app.patch('/explore-artworks/:id/like', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const filter = { _id: new ObjectId(id) };
+    const updateDoc = { $inc: { likes: 1 } }; // increment likes by 1
+    const result = await ArtProductsCollection.updateOne(filter, updateDoc);
+    res.send(result);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({ error: "Failed to update like count" });
+  }
+});
+
 
 
     const FavoritesCollection = db.collection('favorites');
