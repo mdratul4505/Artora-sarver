@@ -72,6 +72,22 @@ async function run() {
     })
 
 
+    app.delete('/explore-artworks/:id' , async (req , res) =>{
+        const {id} = req.params
+        const objectId = new ObjectId(id);
+        const data = req.body
+        const filter = {_id : objectId}
+
+        const result = await ArtProductsCollection.deleteOne(filter)
+        res.send(result);
+    })
+
+
+    app.get('/latest-artworks' , async (req,res) =>{
+        const result = await ArtProductsCollection.find().sort({created_at : -1}).limit(6).toArray()
+        res.send(result)
+    })
+
 
 
     await client.db("admin").command({ ping: 1 });
