@@ -167,7 +167,7 @@ async function run() {
       return res.send(allData);
     }
 
-    // space handle properly for multi-word search
+
     const regexPattern = searchText
       .split(/\s+/)
       .map((word) => `(?=.*${word})`)
