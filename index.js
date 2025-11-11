@@ -84,6 +84,16 @@ async function run() {
       }
     });
 
+    app.get("/explore-artworks", async (req, res) => {
+  try {
+    const result = await ArtProductsCollection.find({ visibility: "public" }).toArray();
+    res.send(result);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({ error: "Failed to fetch artworks" });
+  }
+});
+
     // Latest 6 artworks
     app.get("/latest-artworks", async (req, res) => {
       const result = await ArtProductsCollection.find()
@@ -93,13 +103,13 @@ async function run() {
       res.send(result);
     });
 
-    // ✅ Like an artwork
+    // Like an artwork
     app.patch("/explore-artworks/:id/like", async (req, res) => {
       const { id } = req.params;
       try {
         const result = await ArtProductsCollection.updateOne(
           { _id: new ObjectId(id) },
-          { $inc: { likes: 1 } } // increment likes by 1
+          { $inc: { likes: 1 } } 
         );
         res.send(result);
       } catch (error) {
@@ -117,7 +127,7 @@ async function run() {
 
     app.get("/favorites", async (req, res) => {
       const email = req.query.email;
-      const query = email ? { userEmail: email } : {}; // return all if no email
+      const query = email ? { userEmail: email } : {}; 
       const result = await FavoritesCollection.find(query).toArray();
       res.send(result);
     });
