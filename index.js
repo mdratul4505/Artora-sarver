@@ -1,15 +1,51 @@
 const express = require("express");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const cors = require("cors");
+const admin = require("firebase-admin");
+
+const serviceAccount = require("./serverKey.json");
 
 const app = express();
 const port = process.env.PORT || 3000;
+
+
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount)
+});
+
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 
-// MongoDB URI
+const verifyToken = async (req , res , next) =>{
+                
+    const authorization = req.headers.authorization
+
+    
+    if(!authorization){
+        res.status(401).send({
+            message: "unauthorized access."
+        })
+    }
+
+        const token = authorization.split(' ')[1]
+    
+    try{
+   await admin.auth().verifyIdToken(token)
+
+        next()
+    }catch (error) {
+        res.status(401).send({
+            message: "unauthorized access."
+        })
+    }
+
+    
+}
+
+// MongoDB connection URI
 const uri =
   "mongodb+srv://ArtoradbUser:07G26GufuDf3TbKY@cluster0.mj89i6p.mongodb.net/?appName=Cluster0";
 
@@ -28,55 +64,78 @@ async function run() {
     const ArtProductsCollection = db.collection("artora");
     const FavoritesCollection = db.collection("favorites");
 
-    // Get all artworks
+    console.log("MongoDB connected successfully");
+
+
+
+    // Get all public artworks
     app.get("/explore-artworks", async (req, res) => {
-      const result = await ArtProductsCollection.find().toArray();
-      res.send(result);
+      try {
+        const result = await ArtProductsCollection.find({ visibility: "public" }).toArray();
+        res.send(result);
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({ error: "Failed to fetch artworks" });
+      }
     });
 
-    // Get single artwork
-    app.get("/explore-artworks/:id", async (req, res) => {
+    // Get single artwork by ID
+    app.get("/explore-artworks/:id",verifyToken, async (req, res) => {
       const { id } = req.params;
-      const result = await ArtProductsCollection.findOne({
-        _id: new ObjectId(id),
-      });
-      res.send(result);
+      try {
+        const result = await ArtProductsCollection.findOne({ _id: new ObjectId(id) });
+        res.send(result);
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({ error: "Failed to fetch artwork" });
+      }
     });
 
     // Add new artwork
     app.post("/explore-artworks", async (req, res) => {
       const data = req.body;
-      const result = await ArtProductsCollection.insertOne(data);
-      res.send(result);
+      data.created_at = new Date(); 
+      try {
+        const result = await ArtProductsCollection.insertOne(data);
+        res.send(result);
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({ error: "Failed to add artwork" });
+      }
     });
 
-    // Update artwork
+    //Update artwork
     app.put("/explore-artworks/:id", async (req, res) => {
       const { id } = req.params;
       const data = req.body;
       const filter = { _id: new ObjectId(id) };
-      const result = await ArtProductsCollection.updateOne(filter, {
-        $set: data,
-      });
-      res.send(result);
+
+      try {
+        const result = await ArtProductsCollection.updateOne(filter, { $set: data });
+        res.send(result);
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({ error: "Failed to update artwork" });
+      }
     });
 
     // Delete artwork
     app.delete("/explore-artworks/:id", async (req, res) => {
       const { id } = req.params;
-      const result = await ArtProductsCollection.deleteOne({
-        _id: new ObjectId(id),
-      });
-      res.send(result);
+      try {
+        const result = await ArtProductsCollection.deleteOne({ _id: new ObjectId(id) });
+        res.send(result);
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({ error: "Failed to delete artwork" });
+      }
     });
 
-    // get all artworks of a specific artist
+    // Get all artworks by a specific artist name
     app.get("/artist-artworks/:artistName", async (req, res) => {
       const { artistName } = req.params;
       try {
-        const result = await ArtProductsCollection.find({
-          userName: artistName,
-        }).toArray();
+        const result = await ArtProductsCollection.find({ userName: artistName }).toArray();
         res.send(result);
       } catch (error) {
         console.error(error);
@@ -84,32 +143,59 @@ async function run() {
       }
     });
 
-    app.get("/explore-artworks", async (req, res) => {
+    //Get latest 6 public artworks
+    app.get("/latest-artworks", async (req, res) => {
+      try {
+        const result = await ArtProductsCollection.find({ visibility: "public" })
+          .sort({ created_at: -1 })
+          .limit(6)
+          .toArray();
+        res.send(result);
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({ error: "Failed to fetch latest artworks" });
+      }
+    });
+
+//search api
+   app.get("/search", async (req, res) => {
+  const searchText = (req.query.search || "").trim();
+
   try {
-    const result = await ArtProductsCollection.find({ visibility: "public" }).toArray();
+    if (!searchText) {
+      const allData = await ArtProductsCollection.find().toArray();
+      return res.send(allData);
+    }
+
+    // space handle properly for multi-word search
+    const regexPattern = searchText
+      .split(/\s+/)
+      .map((word) => `(?=.*${word})`)
+      .join("") + ".*";
+
+    const result = await ArtProductsCollection.find({
+      $or: [
+        { title: { $regex: regexPattern, $options: "i" } },
+        { userName: { $regex: regexPattern, $options: "i" } },
+      ],
+    }).toArray();
+
     res.send(result);
   } catch (error) {
-    console.error(error);
-    res.status(500).send({ error: "Failed to fetch artworks" });
+    console.error("Search Error:", error);
+    res.status(500).send({ error: "Failed to search artworks" });
   }
 });
 
-    // Latest 6 artworks
-    app.get("/latest-artworks", async (req, res) => {
-      const result = await ArtProductsCollection.find()
-        .sort({ created_at: -1 })
-        .limit(6)
-        .toArray();
-      res.send(result);
-    });
 
-    // Like an artwork
+
+    // Like an artwork 
     app.patch("/explore-artworks/:id/like", async (req, res) => {
       const { id } = req.params;
       try {
         const result = await ArtProductsCollection.updateOne(
           { _id: new ObjectId(id) },
-          { $inc: { likes: 1 } } 
+          { $inc: { likes: 1 } }
         );
         res.send(result);
       } catch (error) {
@@ -118,33 +204,50 @@ async function run() {
       }
     });
 
-    // ✅ Favorites CRUD
+    // Add a favorite
     app.post("/favorites", async (req, res) => {
       const favoriteData = req.body;
-      const result = await FavoritesCollection.insertOne(favoriteData);
-      res.send(result);
+      try {
+        const result = await FavoritesCollection.insertOne(favoriteData);
+        res.send(result);
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({ error: "Failed to add favorite" });
+      }
     });
 
+    // Get favorites by user email
     app.get("/favorites", async (req, res) => {
       const email = req.query.email;
-      const query = email ? { userEmail: email } : {}; 
-      const result = await FavoritesCollection.find(query).toArray();
-      res.send(result);
+      const query = email ? { userEmail: email } : {};
+      try {
+        const result = await FavoritesCollection.find(query).toArray();
+        res.send(result);
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({ error: "Failed to fetch favorites" });
+      }
     });
 
+    //  Delete a favorite
     app.delete("/favorites/:id", async (req, res) => {
       const { id } = req.params;
-      const result = await FavoritesCollection.deleteOne({
-        _id: new ObjectId(id),
-      });
-      res.send(result);
+      try {
+        const result = await FavoritesCollection.deleteOne({ _id: new ObjectId(id) });
+        res.send(result);
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({ error: "Failed to delete favorite" });
+      }
     });
 
-    console.log("MongoDB connected successfully ✅");
+
   } finally {
+
   }
 }
 
 run().catch(console.dir);
 
-app.listen(port, () => console.log(`Server running on port ${port}`));
+
+app.listen(port, () => console.log(` Server running on port ${port}`));
