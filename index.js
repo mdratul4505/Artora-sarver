@@ -2,7 +2,7 @@ const express = require("express");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const cors = require("cors");
 const admin = require("firebase-admin");
-
+require("dotenv").config()
 const serviceAccount = require("./serverKey.json");
 
 const app = express();
@@ -38,7 +38,7 @@ const verifyToken = async (req, res, next) => {
 
 // MongoDB URI
 const uri =
-  "mongodb+srv://ArtoradbUser:07G26GufuDf3TbKY@cluster0.mj89i6p.mongodb.net/?appName=Cluster0";
+  `mongodb+srv://${process.env.DB_USERNAME}:${process.env.DB_PASSWORD}@cluster0.mj89i6p.mongodb.net/?appName=Cluster0`;
 
 const client = new MongoClient(uri, {
   serverApi: {
@@ -164,27 +164,27 @@ app.get("/filter-artworks", async (req, res) => {
       }
     });
 
-    // --- Search Artworks ---
-    app.get("/search", async (req, res) => {
-      const searchText = (req.query.search || "").trim();
-      try {
-        if (!searchText) {
-          const allData = await ArtProductsCollection.find().toArray();
-          return res.send(allData);
-        }
-        const regexPattern = searchText.split(/\s+/).map((word) => `(?=.*${word})`).join("") + ".*";
-        const result = await ArtProductsCollection.find({
-          $or: [
-            { title: { $regex: regexPattern, $options: "i" } },
-            { userName: { $regex: regexPattern, $options: "i" } },
-          ],
-        }).toArray();
-        res.send(result);
-      } catch (error) {
-        console.error(error);
-        res.status(500).send({ error: "Failed to search artworks" });
-      }
-    });
+  app.get("/search", async (req, res) => {
+  const searchText = (req.query.search || "").trim();
+  try {
+    let query = { visibility: "public" }; // public only
+
+    if (searchText) {
+      const regexPattern = searchText.split(/\s+/).map((word) => `(?=.*${word})`).join("") + ".*";
+      query.$or = [
+        { title: { $regex: regexPattern, $options: "i" } },
+        { userName: { $regex: regexPattern, $options: "i" } },
+      ];
+    }
+
+    const result = await ArtProductsCollection.find(query).toArray();
+    res.send(result);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({ error: "Failed to search artworks" });
+  }
+});
+
 
     // --- Like Artwork ---
     app.patch("/explore-artworks/:id/like", async (req, res) => {
