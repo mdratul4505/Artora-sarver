@@ -93,6 +93,23 @@ async function run() {
       }
     });
 
+    // --- Filter by Category ---
+app.get("/filter-artworks", async (req, res) => {
+  const category = req.query.category;
+  try {
+    let query = { visibility: "public" };
+    if (category && category !== "all") {
+      query.category = category.toLowerCase();
+    }
+    const result = await ArtProductsCollection.find(query).toArray();
+    res.send(result);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({ error: "Failed to filter artworks" });
+  }
+});
+
+
     // --- My Gallery ---
     app.get("/my-gallery", async (req, res) => {
       const email = req.query.email;
